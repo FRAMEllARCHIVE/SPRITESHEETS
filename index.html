@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spritesheet Creator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #grid {
+            width: 600px;
+            height: 400px;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            background-color: #f0f0f0;
+            box-sizing: border-box;
+        }
+
+        #tools {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #cssCode {
+            background-color: #f4f4f4;
+            padding: 10px;
+            width: 100%;
+            max-width: 600px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        #upload {
+            margin-top: 10px;
+        }
+
+        .sprite {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            cursor: move;
+        }
+
+        .tile {
+            width: 100px;
+            height: 100px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="grid"></div>
+        <div id="tools">
+            <input type="file" id="upload" multiple />
+            <button id="downloadBtn">Download Spritesheet</button>
+            <button id="showCssBtn">Show CSS</button>
+            <pre id="cssCode" style="display:none;"></pre>
+        </div>
+    </div>
+
+    <script>
+        const grid = document.getElementById('grid');
+        const uploadInput = document.getElementById('upload');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const showCssBtn = document.getElementById('showCssBtn');
+        const cssCode = document.getElementById('cssCode');
+        const tileSize = 100;
+
+        let imageElements = [];
+        let positions = [];
+
+        // Create grid tiles
+        for (let i = 0; i < 30; i++) {
+            const tile = document.createElement('div');
+            tile.classList.add('tile');
+            grid.appendChild(tile);
+        }
+
+        uploadInput.addEventListener('change', (event) => {
+            const files = event.target.files;
+            for (const file of files) {
+                if (file.type.startsWith('image/png')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.src = e.target.result;
+                        img.onload = () => {
+                            const imgElement = createImageElement(img);
+                            grid.appendChild(imgElement);
+                            imageElements.push(imgElement);
+                            positions.push({ x: 0, y: 0 });
+                            updateSpritePosition(imgElement, 0, 0);  // Place sprite at the first available tile
+                        };
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        });
+
+        function createImageElement(img) {
+            const imgElement = document.createElement('img');
+            imgElement.src = img.src;
+            imgElement.classList.add('sprite');
+            imgElement.width = tileSize;
+            imgElement.height = tileSize;
+
+            let offsetX, offsetY, isDragging = false;
+            let currentIndex = imageElements.length;
+
+            imgElement.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                offsetX = e.clientX - imgElement.offsetLeft;
+                offsetY = e.clientY - imgElement.offsetTop;
+                imgElement.style.cursor = 'grabbing';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const x = e.clientX - offsetX;
+                const y = e.clientY - offsetY;
+                imgElement.style.left = `${x}px`;
+                imgElement.style.top = `${y}px`;
+            });
+
+            imgElement.addEventListener('mouseup', (e) => {
+                isDragging = false;
+                imgElement.style.cursor = 'move';
+
+                const x = Math.floor((e.clientX - grid.offsetLeft) / tileSize) * tileSize;
+                const y = Math.floor((e.clientY - grid.offsetTop) / tileSize) * tileSize;
+                updateSpritePosition(imgElement, x, y);
+                positions[currentIndex] = { x, y };
+            });
+
+            return imgElement;
+        }
+
+        function updateSpritePosition(imgElement, x, y) {
+            imgElement.style.left = `${x}px`;
+            imgElement.style.top = `${y}px`;
+        }
+
+        function getAvailableTile() {
+            let availableTile = null;
+            for (let i = 0; i < imageElements.length; i++) {
+                const pos = positions[i];
+                if (!positions.some((otherPos) => otherPos.x === pos.x && otherPos.y === pos.y)) {
+                    availableTile = { x: pos.x, y: pos.y };
+                    break;
+                }
+            }
+            return availableTile;
+        }
+
+        showCssBtn.addEventListener('click', () => {
+            let css = '';
+            positions.forEach((pos, index) => {
+                css += `.sprite-${index} { \n`;
+                css += `  background-position: -${pos.x}px -${pos.y}px; \n`;
+                css += `  width: ${tileSize}px; \n`;
+                css += `  height: ${tileSize}px; \n`;
+                css += `}\n\n`;
+            });
+            cssCode.textContent = css;
+            cssCode.style.display = 'block';
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            const totalWidth = tileSize * Math.ceil(Math.sqrt(imageElements.length));
+            const totalHeight = tileSize * Math.ceil(imageElements.length / Math.sqrt(imageElements.length));
+
+            canvas.width = totalWidth;
+            canvas.height = totalHeight;
+
+            positions.forEach((pos, index) => {
+                const img = new Image();
+                img.src = imageElements[index].src;
+                img.onload = () => {
+                    ctx.drawImage(img, pos.x, pos.y, tileSize, tileSize);
+                    if (index === positions.length - 1) {
+                        const link = document.createElement('a');
+                        link.href = canvas.toDataURL('image/png');
+                        link.download = 'spritesheet.png';
+                        link.click();
+                    }
+                };
+            });
+        });
+
+    </script>
+</body>
+</html>
