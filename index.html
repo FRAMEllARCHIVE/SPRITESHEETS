@@ -105,19 +105,16 @@
 </head>
 <body>
     <div id="container">
-        <!-- Main Grid Area -->
         <div id="gridWrapper">
             <div id="grid"></div>
         </div>
-
-        <!-- Tools and Details -->
         <div id="tools">
             <input type="file" id="upload" multiple />
             <button id="downloadBtn">Download Spritesheet</button>
             <button id="showCssBtn">Show CSS</button>
             <div id="spriteDetails" style="display: none;">
                 <label for="spriteName">Frame Name:</label>
-                <input type="text" id="spriteName" placeholder="Enter frame name" />
+                <input type="text" id="spriteName" placeholder="Enter frame name and press Enter" />
             </div>
             <pre id="cssCode" style="display:none;"></pre>
         </div>
@@ -206,15 +203,15 @@
             selectedSprite = sprite;
             sprite.classList.add('selected');
 
-            // Update sprite details panel
             const index = imageElements.indexOf(sprite);
             spriteNameInput.value = names[index];
             spriteDetails.style.display = 'block';
 
-            // Update name dynamically
-            spriteNameInput.addEventListener('input', () => {
-                names[index] = spriteNameInput.value.trim();
-            });
+            spriteNameInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    names[index] = spriteNameInput.value.trim();
+                }
+            };
         }
 
         function updateSpritePosition(imgElement, x, y) {
